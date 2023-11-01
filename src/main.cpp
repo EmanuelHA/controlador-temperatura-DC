@@ -15,6 +15,8 @@
 #define  PIN_TERMISTOR 22     // PIN ADC (PC3)(ID A3)
 #endif
 
+//Define al direccion en la que se aplicara el PID al output
+#define DIRECTION REVERSE
 // Referencias del controlador PID
 double setpoint, input, output;
 // Variables de PID
@@ -24,7 +26,7 @@ const float R1 = 100000;
 // Coeficientes de S-H (http://www.thinksrs.com/downloads/programs/Therm%20Calc/NTCCalibrator/NTCcalculator.htm)
 const float A = 2.114990448e-03, B = 0.3832381228e-04, C = 5.228061052e-07;
 // Declaracion del controlador PID
-PID PIDcontroller(&input, &output, &setpoint, kp, ki, kd, REVERSE);
+PID PIDcontroller(&input, &output, &setpoint, kp, ki, kd, DIRECTION);
 
 float ln(float x) { // LingDong- / ln.c -> -212 bytes vs. log()
   unsigned int bx = * (unsigned int *) (&x);
