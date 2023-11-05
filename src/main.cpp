@@ -1,32 +1,36 @@
 #include <Arduino.h>
+#include <PID_v1.h>
 #include <TinyI2CMaster.h>
 #define  TINY4KOLED_QUICK_BEGIN // Optimizacion de espacio en OLED blanca
 #include <Tiny4kOLED.h>
-#include "ModernDos8.h"
-#include <PID_v1.h>
 
 #if defined(__AVR_ATtiny85__)
-#define     PIN_MOSFET 1      // PIN PWM (PB1)
-#define  PIN_TERMISTOR 2      // PIN ADC (PB2)
+#define     PIN_MOSFET PB1    // PWM
+#define  PIN_TERMISTOR PB4    // ADC
 #endif
 
 #if defined(__AVR_ATtiny88__)
-#define     PIN_MOSFET 9      // PIN PWM (PB1)(ID 9)
-#define  PIN_TERMISTOR 22     // PIN ADC (PC3)(ID A3)
+#define     PIN_MOSFET 9      // PWM (PB1)(ID 9)
+#define  PIN_TERMISTOR 22     // ADC (PC3)(ID A3/22)
 #endif
 
-//Define al direccion en la que se aplicara el PID al output
+// Direccion en la que se aplicara el PID al output (DIRECT/REVERSE)
 #define DIRECTION REVERSE
+// Retardo en la actualizacion de la pantalla OLED 
+#define PRINT_DELAY 500
+// Temporizadores de actualizacion
+unsigned long timer = 0, timerPrev = 0;
+// Resistencia fija del divisor de tension
+const float R1 = 100000;
+// Coeficientes de S & H (http://www.thinksrs.com/downloads/programs/Therm%20Calc/NTCCalibrator/NTCcalculator.htm)
+const float A = 2.114990448e-03, B = 0.3832381228e-04, C = 5.228061052e-07;
 // Referencias del controlador PID
 double setpoint, input, output;
 // Variables de PID
 double kp = 2.0, ki = 5.0, kd = 1.0;
-// Resistencia fija del divisor de tension
-const float R1 = 100000;
-// Coeficientes de S-H (http://www.thinksrs.com/downloads/programs/Therm%20Calc/NTCCalibrator/NTCcalculator.htm)
-const float A = 2.114990448e-03, B = 0.3832381228e-04, C = 5.228061052e-07;
 // Declaracion del controlador PID
 PID PIDcontroller(&input, &output, &setpoint, kp, ki, kd, DIRECTION);
+
 
 float ln(float x) { // LingDong- / ln.c -> -212 bytes vs. log()
   unsigned int bx = * (unsigned int *) (&x);
@@ -59,16 +63,20 @@ float readTemperature() {
 void updateDisplay() {
   oled.clear();
   oled.setCursor(0,1);
-  oled.print(F("TEMPERATURE: "));
+  oled.print(F("TEMPERATURA:"));
+  oled.setCursor(0,2);
   oled.print(input);
-  oled.print(F(" °C"));
+  oled.print(F(" C"));
   oled.switchFrame();
 }
 
 void setup() {
+  // Inicializacion pines
+  pinMode(PIN_MOSFET, OUTPUT);
+  pinMode(PIN_TERMISTOR, INPUT);
   // Inicializacion OLED
   oled.begin();
-  oled.setFont(FONT8X8MDOS);
+  oled.setFont(FONT6X8);
   oled.on();
   oled.switchRenderFrame();
   // Inicializacion del control PID
@@ -78,9 +86,12 @@ void setup() {
 }
 
 void loop() {
+  timer = millis();
   PIDcontroller.Compute();
   analogWrite(PIN_MOSFET, output);
   input = readTemperature();
-  updateDisplay();
-  delay(500);
+  if ((timer - timerPrev) > PRINT_DELAY) {
+    updateDisplay();
+    timerPrev = timer;
+  }
 }
